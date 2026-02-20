@@ -38,6 +38,13 @@ public static class MessageDeserializer
         { 2000, "Merged" }
     };
 
+    private static readonly Dictionary<int, string> CaseOriginLabels = new()
+    {
+        { 1, "Phone" },
+        { 2, "Email" },
+        { 3, "Web" }
+    };
+
     /// <summary>
     /// Deserializes a RemoteExecutionContext from a binary message body.
     /// Supports .NET Binary XML (application/msbin1), XML, and JSON content types.
@@ -96,9 +103,9 @@ public static class MessageDeserializer
         // Merge with PostImage if available (gives us full attribute set on updates)
         var merged = new Entity(target.LogicalName, target.Id);
 
-        if (context.PostEntityImages.TryGetValue("PostImage", out var postImage))
+        foreach (var image in context.PostEntityImages.Values)
         {
-            foreach (var attr in postImage.Attributes)
+            foreach (var attr in image.Attributes)
                 merged[attr.Key] = attr.Value;
         }
 
@@ -116,6 +123,8 @@ public static class MessageDeserializer
             PriorityLabel = GetOptionSetLabel(merged, "prioritycode", PriorityLabels),
             StatusCode = GetOptionSetValue(merged, "statuscode"),
             StatusLabel = GetOptionSetLabel(merged, "statuscode", StatusLabels),
+            CaseOriginCode = GetOptionSetValue(merged, "caseorigincode"),
+            CaseOriginLabel = GetOptionSetLabel(merged, "caseorigincode", CaseOriginLabels),
             CaseTypeCode = GetOptionSetValue(merged, "casetypecode"),
             CreatedOn = GetAttributeValue<DateTime?>(merged, "createdon"),
             ModifiedOn = GetAttributeValue<DateTime?>(merged, "modifiedon"),

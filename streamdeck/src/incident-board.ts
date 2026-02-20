@@ -6,6 +6,7 @@ import {
   DEFAULT_PRIORITY_COLOR,
   INCIDENT_KEY_START,
   INCIDENT_KEY_COUNT,
+  ORIGIN_EMOJIS,
 } from "./types.js";
 
 export class IncidentBoard {
@@ -72,9 +73,9 @@ export class IncidentBoard {
     }
 
     const bgColor = PRIORITY_COLORS[msg.priorityCode ?? 0] ?? DEFAULT_PRIORITY_COLOR;
+    const originEmoji = ORIGIN_EMOJIS[msg.caseOriginCode ?? 0] ?? "\u{2753}";
     const buf = await renderIncidentKey(
-      msg.ticketNumber ?? "---",
-      msg.title ?? "Untitled",
+      originEmoji,
       msg.priorityLabel ?? "Unknown",
       bgColor
     );

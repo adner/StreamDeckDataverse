@@ -8,6 +8,8 @@ export interface IncidentMessage {
   priorityLabel: string | null;
   statusCode: number | null;
   statusLabel: string | null;
+  caseOriginCode: number | null;
+  caseOriginLabel: string | null;
   caseTypeCode: number | null;
   createdOn: string | null;
   modifiedOn: string | null;
@@ -24,7 +26,14 @@ export const PRIORITY_COLORS: Record<number, string> = {
 
 export const DEFAULT_PRIORITY_COLOR = "#616161";
 
+/** Case origin code → emoji. */
+export const ORIGIN_EMOJIS: Record<number, string> = {
+  1: "\u{260E}\u{FE0F}",  // Phone: telephone
+  2: "\u{2709}\u{FE0F}",  // Email: envelope
+  3: "\u{1F310}",          // Web: globe
+};
+
 /** Stream Deck XL layout constants. */
-export const INCIDENT_KEY_START = 8;
-export const INCIDENT_KEY_COUNT = 24;
+export const INCIDENT_KEY_START = 0;
+export const INCIDENT_KEY_COUNT = 32;
 export const KEY_SIZE = 96;

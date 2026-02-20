@@ -1,5 +1,4 @@
 import { listStreamDecks, openStreamDeck, DeviceModelId } from "@elgato-stream-deck/node";
-import { renderTextKey } from "./render.js";
 import { ServiceBusChild } from "./ipc.js";
 import { IncidentBoard } from "./incident-board.js";
 import type { IncidentMessage } from "./types.js";
@@ -34,19 +33,7 @@ async function main(): Promise<void> {
   // 4. Clear all keys
   await deck.clearPanel();
 
-  // 5. Render header row (row 0: keys 0–7)
-  const headers = [
-    { key: 0, text: "D365",   bg: "#00695c" },
-    { key: 1, text: "Cases",  bg: "#1565c0" },
-    { key: 7, text: "Status", bg: "#4e342e" },
-  ];
-
-  for (const h of headers) {
-    const buf = await renderTextKey(h.text, h.bg);
-    await deck.fillKeyBuffer(h.key, buf, { format: "rgb" });
-  }
-
-  // 6. Set up incident board (keys 8–31)
+  // 5. Set up incident board (keys 0–31)
   const board = new IncidentBoard(deck);
 
   // 7. Spawn .NET Service Bus listener
@@ -81,7 +68,7 @@ async function main(): Promise<void> {
     const incident = board.getIncidentAtKey(control.index);
     if (incident) {
       // Re-render the incident key to restore it
-      const slot = control.index - 8;
+      const slot = control.index;
       board.renderSlot(slot).catch(console.error);
     } else {
       // For header/empty keys, just clear
