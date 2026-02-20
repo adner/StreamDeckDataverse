@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   const child = new ServiceBusChild();
 
   child.on("incident", (msg: IncidentMessage) => {
-    console.error(`[incident] ${msg.messageName}: ${msg.ticketNumber} — ${msg.title}`);
+    console.error(`[incident] ${msg.messageName}: ${msg.ticketNumber} — ${msg.title} [${msg.stateLabel ?? "Active"}]`);
     board.handleIncident(msg);
   });
 

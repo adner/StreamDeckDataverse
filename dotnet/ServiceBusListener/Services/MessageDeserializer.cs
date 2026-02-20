@@ -38,6 +38,16 @@ public static class MessageDeserializer
         { 2000, "Merged" }
     };
 
+    /// <summary>
+    /// State code label mapping for Dynamics 365 incident entity.
+    /// </summary>
+    internal static readonly Dictionary<int, string> StateLabels = new()
+    {
+        { 0, "Active" },
+        { 1, "Resolved" },
+        { 2, "Cancelled" }
+    };
+
     internal static readonly Dictionary<int, string> CaseOriginLabels = new()
     {
         { 1, "Phone" },
@@ -127,6 +137,8 @@ public static class MessageDeserializer
             CaseOriginCode = GetOptionSetValue(merged, "caseorigincode"),
             CaseOriginLabel = GetOptionSetLabel(merged, "caseorigincode", CaseOriginLabels),
             CaseTypeCode = GetOptionSetValue(merged, "casetypecode"),
+            StateCode = GetOptionSetValue(merged, "statecode"),
+            StateLabel = GetOptionSetLabel(merged, "statecode", StateLabels),
             CreatedOn = GetAttributeValue<DateTime?>(merged, "createdon"),
             ModifiedOn = GetAttributeValue<DateTime?>(merged, "modifiedon"),
             MessageName = context.MessageName ?? "Unknown",
@@ -152,6 +164,8 @@ public static class MessageDeserializer
             CaseOriginCode = GetOptionSetValue(entity, "caseorigincode"),
             CaseOriginLabel = GetOptionSetLabel(entity, "caseorigincode", CaseOriginLabels),
             CaseTypeCode = GetOptionSetValue(entity, "casetypecode"),
+            StateCode = GetOptionSetValue(entity, "statecode"),
+            StateLabel = GetOptionSetLabel(entity, "statecode", StateLabels),
             CreatedOn = GetAttributeValue<DateTime?>(entity, "createdon"),
             ModifiedOn = GetAttributeValue<DateTime?>(entity, "modifiedon"),
             MessageName = messageName,

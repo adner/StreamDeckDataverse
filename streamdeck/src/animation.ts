@@ -9,7 +9,7 @@ function delay(ms: number): Promise<void> {
 }
 
 /** Create a dimmed copy of an RGB buffer by multiplying each byte by a factor. */
-function dimBuffer(buf: Buffer, factor: number): Buffer {
+export function dimBuffer(buf: Buffer, factor: number): Buffer {
   const out = Buffer.allocUnsafe(buf.length);
   for (let i = 0; i < buf.length; i++) {
     out[i] = Math.round(buf[i] * factor);
@@ -110,6 +110,48 @@ export async function updatePulseAnimation(
 
   for (const factor of steps) {
     const buf = factor < 1.0 ? dimBuffer(newBuffer, factor) : newBuffer;
+    await deck.fillKeyBuffer(keyIndex, buf, { format: "rgb" });
+    if (factor < 1.0) await delay(stepDelay);
+  }
+}
+
+const FADE_OUT_MS = 300;
+
+/**
+ * Fades a key out by ramping brightness down to zero, then clearing.
+ * Used when an incident is resolved/cancelled.
+ */
+export async function fadeOutAnimation(
+  deck: StreamDeck,
+  keyIndex: number,
+  currentBuffer: Buffer
+): Promise<void> {
+  const steps = [0.7, 0.4, 0.2, 0.1];
+  const stepDelay = Math.round(FADE_OUT_MS / (steps.length + 1));
+
+  for (const factor of steps) {
+    await deck.fillKeyBuffer(keyIndex, dimBuffer(currentBuffer, factor), { format: "rgb" });
+    await delay(stepDelay);
+  }
+  await deck.clearKey(keyIndex);
+}
+
+const SHIFT_PULSE_MS = 200;
+
+/**
+ * Subtle pulse from 40% to 100% indicating a key shifted position.
+ * Lighter than updatePulse — just signals movement.
+ */
+export async function shiftPulseAnimation(
+  deck: StreamDeck,
+  keyIndex: number,
+  buffer: Buffer
+): Promise<void> {
+  const steps = [0.4, 0.6, 0.8, 1.0];
+  const stepDelay = Math.round(SHIFT_PULSE_MS / steps.length);
+
+  for (const factor of steps) {
+    const buf = factor < 1.0 ? dimBuffer(buffer, factor) : buffer;
     await deck.fillKeyBuffer(keyIndex, buf, { format: "rgb" });
     if (factor < 1.0) await delay(stepDelay);
   }

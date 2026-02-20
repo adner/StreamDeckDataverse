@@ -84,8 +84,8 @@ public sealed class ServiceBusListenerService : BackgroundService
             {
                 ColumnSet = new ColumnSet(
                     "title", "ticketnumber", "description",
-                    "prioritycode", "statuscode", "caseorigincode",
-                    "casetypecode", "createdon", "modifiedon"),
+                    "prioritycode", "statuscode", "statecode",
+                    "caseorigincode", "casetypecode", "createdon", "modifiedon"),
                 Criteria = new FilterExpression(LogicalOperator.And)
             };
             // statecode 0 = Active

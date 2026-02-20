@@ -8,6 +8,8 @@ export interface IncidentMessage {
   priorityLabel: string | null;
   statusCode: number | null;
   statusLabel: string | null;
+  stateCode: number | null;
+  stateLabel: string | null;
   caseOriginCode: number | null;
   caseOriginLabel: string | null;
   caseTypeCode: number | null;

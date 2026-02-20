@@ -37,6 +37,12 @@ public sealed class IncidentMessage
     [JsonPropertyName("caseOriginLabel")]
     public string? CaseOriginLabel { get; set; }
 
+    [JsonPropertyName("stateCode")]
+    public int? StateCode { get; set; }
+
+    [JsonPropertyName("stateLabel")]
+    public string? StateLabel { get; set; }
+
     [JsonPropertyName("caseTypeCode")]
     public int? CaseTypeCode { get; set; }
 
