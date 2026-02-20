@@ -3,6 +3,9 @@ using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Query;
+using ServiceBusListener.Models;
 
 namespace ServiceBusListener.Services;
 
@@ -14,6 +17,7 @@ namespace ServiceBusListener.Services;
 public sealed class ServiceBusListenerService : BackgroundService
 {
     private readonly ILogger<ServiceBusListenerService> _logger;
+    private readonly IOrganizationService _orgService;
     private readonly string _connectionString;
     private readonly string _queueName;
     private readonly string? _teeFilePath;
@@ -22,11 +26,10 @@ public sealed class ServiceBusListenerService : BackgroundService
     private ServiceBusClient? _client;
     private ServiceBusProcessor? _processor;
 
-
-    
-    public ServiceBusListenerService(ILogger<ServiceBusListenerService> logger, IConfiguration configuration)
+    public ServiceBusListenerService(ILogger<ServiceBusListenerService> logger, IConfiguration configuration, IOrganizationService orgService)
     {
         _logger = logger;
+        _orgService = orgService;
         _connectionString = configuration["ServiceBus:ConnectionString"]
             ?? throw new InvalidOperationException("ServiceBus:ConnectionString is not configured. Copy appsettings.template.json to appsettings.json and fill in your connection string.");
         _queueName = configuration["ServiceBus:QueueName"] ?? "dataverseupdates";
@@ -41,6 +44,9 @@ public sealed class ServiceBusListenerService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Query active incidents to populate initial state
+        await LoadActiveIncidentsAsync();
+
         _logger.LogInformation("Starting Service Bus listener on queue '{QueueName}'", _queueName);
 
         _client = new ServiceBusClient(_connectionString);
@@ -68,6 +74,53 @@ public sealed class ServiceBusListenerService : BackgroundService
         }
     }
 
+    private async Task LoadActiveIncidentsAsync()
+    {
+        _logger.LogInformation("Querying Dataverse for active incidents...");
+
+        try
+        {
+            var query = new QueryExpression("incident")
+            {
+                ColumnSet = new ColumnSet(
+                    "title", "ticketnumber", "description",
+                    "prioritycode", "statuscode", "caseorigincode",
+                    "casetypecode", "createdon", "modifiedon"),
+                Criteria = new FilterExpression(LogicalOperator.And)
+            };
+            // statecode 0 = Active
+            query.Criteria.AddCondition("statecode", ConditionOperator.Equal, 0);
+            query.AddOrder("createdon", OrderType.Ascending);
+
+            var results = _orgService.RetrieveMultiple(query);
+
+            _logger.LogInformation("Found {Count} active incident(s)", results.Entities.Count);
+
+            foreach (var entity in results.Entities)
+            {
+                var incident = MessageDeserializer.MapEntityToIncidentMessage(entity, "InitialLoad");
+                await EmitIncidentAsync(incident);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load active incidents from Dataverse");
+        }
+    }
+
+    private async Task EmitIncidentAsync(IncidentMessage incident)
+    {
+        var json = JsonSerializer.Serialize(incident, _jsonOptions);
+
+        await Console.Out.WriteLineAsync(json);
+        await Console.Out.FlushAsync();
+
+        if (!string.IsNullOrEmpty(_teeFilePath))
+        {
+            await File.AppendAllTextAsync(_teeFilePath, json + Environment.NewLine);
+        }
+    }
+
     private async Task ProcessMessageAsync(ProcessMessageEventArgs args)
     {
         try
@@ -79,17 +132,7 @@ public sealed class ServiceBusListenerService : BackgroundService
 
             if (incident != null)
             {
-                var json = JsonSerializer.Serialize(incident, _jsonOptions);
-
-                // Write NDJSON to stdout
-                await Console.Out.WriteLineAsync(json);
-                await Console.Out.FlushAsync();
-
-                // Tee to file if configured
-                if (!string.IsNullOrEmpty(_teeFilePath))
-                {
-                    await File.AppendAllTextAsync(_teeFilePath, json + Environment.NewLine);
-                }
+                await EmitIncidentAsync(incident);
 
                 _logger.LogInformation(
                     "Processed incident: {TicketNumber} \"{Title}\" ({Priority})",

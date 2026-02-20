@@ -1,7 +1,8 @@
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import { GRID_COLUMNS, GRID_ROWS, INCIDENT_KEY_START } from "./types.js";
 
-const FRAME_DELAY_MS = 100;
+const TOTAL_ANIMATION_MS = 180;
+const FRAMES_PER_ROW = 5;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -39,8 +40,13 @@ export async function slideInAnimation(
   const targetRow = Math.floor(targetKey / GRID_COLUMNS);
   const col = targetKey % GRID_COLUMNS;
 
-  // Target is already on the bottom row — place directly
+  // Target is on the bottom row — quick fade-in
   if (targetRow === GRID_ROWS - 1) {
+    const fadeDelay = Math.round(TOTAL_ANIMATION_MS / FRAMES_PER_ROW);
+    await deck.fillKeyBuffer(targetKey, dimBuffer(buffer, 0.3), { format: "rgb" });
+    await delay(fadeDelay);
+    await deck.fillKeyBuffer(targetKey, dimBuffer(buffer, 0.6), { format: "rgb" });
+    await delay(fadeDelay);
     await deck.fillKeyBuffer(targetKey, buffer, { format: "rgb" });
     return;
   }
@@ -50,6 +56,8 @@ export async function slideInAnimation(
   const dim60 = dimBuffer(buffer, 0.6);
 
   const bottomRow = GRID_ROWS - 1;
+  const rowsToTravel = bottomRow - targetRow;
+  const frameDelay = Math.round(TOTAL_ANIMATION_MS / (rowsToTravel * FRAMES_PER_ROW));
 
   for (let row = bottomRow; row >= targetRow; row--) {
     const curKey = row * GRID_COLUMNS + col;
@@ -62,24 +70,24 @@ export async function slideInAnimation(
     const nextKey = (row - 1) * GRID_COLUMNS + col;
 
     // Frame 1: current 100% (already shown) — pause
-    await delay(FRAME_DELAY_MS);
+    await delay(frameDelay);
 
     // Frame 2: current 100% + next 30%
     await deck.fillKeyBuffer(nextKey, dim30, { format: "rgb" });
-    await delay(FRAME_DELAY_MS);
+    await delay(frameDelay);
 
     // Frame 3: current 100% + next 60%
     await deck.fillKeyBuffer(nextKey, dim60, { format: "rgb" });
-    await delay(FRAME_DELAY_MS);
+    await delay(frameDelay);
 
     // Frame 4: current 60% + next 100%
     await deck.fillKeyBuffer(curKey, dim60, { format: "rgb" });
     await deck.fillKeyBuffer(nextKey, buffer, { format: "rgb" });
-    await delay(FRAME_DELAY_MS);
+    await delay(frameDelay);
 
     // Frame 5: current 30% + next 100%
     await deck.fillKeyBuffer(curKey, dim30, { format: "rgb" });
-    await delay(FRAME_DELAY_MS);
+    await delay(frameDelay);
 
     // Clear current row, next row stays full
     await deck.clearKey(curKey);

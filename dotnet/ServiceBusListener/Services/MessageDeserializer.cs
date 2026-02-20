@@ -16,7 +16,7 @@ public static class MessageDeserializer
     /// <summary>
     /// Priority code label mapping for Dynamics 365 incident entity.
     /// </summary>
-    private static readonly Dictionary<int, string> PriorityLabels = new()
+    internal static readonly Dictionary<int, string> PriorityLabels = new()
     {
         { 1, "High" },
         { 2, "Normal" },
@@ -26,7 +26,7 @@ public static class MessageDeserializer
     /// <summary>
     /// Status code label mapping for Dynamics 365 incident entity.
     /// </summary>
-    private static readonly Dictionary<int, string> StatusLabels = new()
+    internal static readonly Dictionary<int, string> StatusLabels = new()
     {
         { 1, "In Progress" },
         { 2, "On Hold" },
@@ -38,7 +38,7 @@ public static class MessageDeserializer
         { 2000, "Merged" }
     };
 
-    private static readonly Dictionary<int, string> CaseOriginLabels = new()
+    internal static readonly Dictionary<int, string> CaseOriginLabels = new()
     {
         { 1, "Phone" },
         { 2, "Email" },
@@ -129,6 +129,31 @@ public static class MessageDeserializer
             CreatedOn = GetAttributeValue<DateTime?>(merged, "createdon"),
             ModifiedOn = GetAttributeValue<DateTime?>(merged, "modifiedon"),
             MessageName = context.MessageName ?? "Unknown",
+            Timestamp = DateTime.UtcNow
+        };
+    }
+
+    /// <summary>
+    /// Maps a raw incident Entity (e.g. from a query) to an IncidentMessage.
+    /// </summary>
+    public static IncidentMessage MapEntityToIncidentMessage(Entity entity, string messageName = "Query")
+    {
+        return new IncidentMessage
+        {
+            IncidentId = entity.Id.ToString(),
+            Title = GetAttributeValue<string>(entity, "title"),
+            TicketNumber = GetAttributeValue<string>(entity, "ticketnumber"),
+            Description = GetAttributeValue<string>(entity, "description"),
+            PriorityCode = GetOptionSetValue(entity, "prioritycode"),
+            PriorityLabel = GetOptionSetLabel(entity, "prioritycode", PriorityLabels),
+            StatusCode = GetOptionSetValue(entity, "statuscode"),
+            StatusLabel = GetOptionSetLabel(entity, "statuscode", StatusLabels),
+            CaseOriginCode = GetOptionSetValue(entity, "caseorigincode"),
+            CaseOriginLabel = GetOptionSetLabel(entity, "caseorigincode", CaseOriginLabels),
+            CaseTypeCode = GetOptionSetValue(entity, "casetypecode"),
+            CreatedOn = GetAttributeValue<DateTime?>(entity, "createdon"),
+            ModifiedOn = GetAttributeValue<DateTime?>(entity, "modifiedon"),
+            MessageName = messageName,
             Timestamp = DateTime.UtcNow
         };
     }
