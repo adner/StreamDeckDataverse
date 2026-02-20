@@ -1,7 +1,7 @@
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import { GRID_COLUMNS, GRID_ROWS, INCIDENT_KEY_START } from "./types.js";
 
-const FRAME_DELAY_MS = 80;
+const FRAME_DELAY_MS = 120;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -10,6 +10,14 @@ function delay(ms: number): Promise<void> {
 /**
  * Animates a pre-rendered buffer sliding from the bottom row up to the
  * target slot's position within the same column.
+ *
+ * Uses overlap frames: the image briefly appears on two adjacent keys
+ * simultaneously to create a smooth trailing effect.
+ *
+ * Sequence for each row transition:
+ *   1. Show on current row only → delay
+ *   2. Show on current row + row above → delay
+ *   3. Clear current row (image remains on row above) → continue
  */
 export async function slideInAnimation(
   deck: StreamDeck,
@@ -26,15 +34,25 @@ export async function slideInAnimation(
     return;
   }
 
-  // Animate from bottom row up to target row
-  for (let row = GRID_ROWS - 1; row >= targetRow; row--) {
+  const bottomRow = GRID_ROWS - 1;
+
+  for (let row = bottomRow; row >= targetRow; row--) {
     const keyIndex = row * GRID_COLUMNS + col;
+
+    // Show image at current position
     await deck.fillKeyBuffer(keyIndex, buffer, { format: "rgb" });
 
-    if (row !== targetRow) {
-      await delay(FRAME_DELAY_MS);
-      await deck.clearKey(keyIndex);
-    }
+    if (row === targetRow) break; // Final position — leave in place
+
+    await delay(FRAME_DELAY_MS);
+
+    // Overlap frame: show on both current and next row up
+    const nextKey = (row - 1) * GRID_COLUMNS + col;
+    await deck.fillKeyBuffer(nextKey, buffer, { format: "rgb" });
+    await delay(FRAME_DELAY_MS);
+
+    // Clear current row, image continues on the row above
+    await deck.clearKey(keyIndex);
   }
 }
 
