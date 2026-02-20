@@ -53,6 +53,22 @@ export async function renderIncidentKey(
     .toBuffer();
 }
 
+/**
+ * Renders a full-panel splash image for the Stream Deck XL (768x384 px).
+ * Pass the result to `deck.fillPanelBuffer(buf, { format: "rgb" })`.
+ */
+export async function renderSplashScreen(
+  imagePath: string,
+  width: number = 768,
+  height: number = 384
+): Promise<Buffer> {
+  return sharp(imagePath)
+    .resize(width, height, { fit: "cover" })
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+}
+
 function escapeXml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
