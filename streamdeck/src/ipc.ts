@@ -61,6 +61,7 @@ export class ServiceBusChild extends EventEmitter {
 
     const child = spawn("dotnet", ["run", "--project", PROJECT_PATH], {
       stdio: ["ignore", "pipe", "inherit"],
+      cwd: PROJECT_PATH,
     });
 
     this.child = child;
