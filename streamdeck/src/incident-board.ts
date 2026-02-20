@@ -1,5 +1,6 @@
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import { renderIncidentKey } from "./render.js";
+import { AnimationQueue, slideInAnimation } from "./animation.js";
 import {
   type IncidentMessage,
   PRIORITY_COLORS,
@@ -13,6 +14,7 @@ export class IncidentBoard {
   private slots: (IncidentMessage | null)[] = new Array(INCIDENT_KEY_COUNT).fill(null);
   private idToSlot = new Map<string, number>();
   private deck: StreamDeck;
+  private animationQueue = new AnimationQueue();
 
   constructor(deck: StreamDeck) {
     this.deck = deck;
@@ -22,13 +24,15 @@ export class IncidentBoard {
     const existing = this.idToSlot.get(msg.incidentId);
 
     if (existing !== undefined) {
-      // Update in place
+      // Update in place — no animation
       this.slots[existing] = msg;
       await this.renderSlot(existing);
       return;
     }
 
-    // Find first empty slot
+    // New incident — pre-render buffer before queuing animation
+    const buf = await this.renderBuffer(msg);
+
     let slot = this.slots.indexOf(null);
 
     if (slot === -1) {
@@ -45,15 +49,24 @@ export class IncidentBoard {
       slot = INCIDENT_KEY_COUNT - 1;
       this.slots[slot] = null;
 
-      // Re-render all shifted slots
+      // Re-render all shifted slots immediately (no animation)
       for (let i = 0; i < INCIDENT_KEY_COUNT - 1; i++) {
         await this.renderSlot(i);
       }
     }
 
+    // Commit data model immediately
     this.slots[slot] = msg;
     this.idToSlot.set(msg.incidentId, slot);
-    await this.renderSlot(slot);
+
+    // Enqueue slide-in animation (non-blocking)
+    this.animationQueue.enqueue(() =>
+      slideInAnimation(this.deck, slot, buf)
+    );
+  }
+
+  async flushAnimations(): Promise<void> {
+    await this.animationQueue.flush();
   }
 
   getIncidentAtKey(keyIndex: number): IncidentMessage | null {
@@ -72,14 +85,14 @@ export class IncidentBoard {
       return;
     }
 
+    const buf = await this.renderBuffer(msg);
+    await this.deck.fillKeyBuffer(keyIndex, buf, { format: "rgb" });
+  }
+
+  private async renderBuffer(msg: IncidentMessage): Promise<Buffer> {
     const bgColor = PRIORITY_COLORS[msg.priorityCode ?? 0] ?? DEFAULT_PRIORITY_COLOR;
     const originEmoji = ORIGIN_EMOJIS[msg.caseOriginCode ?? 0] ?? "\u{2753}";
-    const buf = await renderIncidentKey(
-      originEmoji,
-      msg.priorityLabel ?? "Unknown",
-      bgColor
-    );
-    await this.deck.fillKeyBuffer(keyIndex, buf, { format: "rgb" });
+    return renderIncidentKey(originEmoji, msg.priorityLabel ?? "Unknown", bgColor);
   }
 
   async renderAll(): Promise<void> {

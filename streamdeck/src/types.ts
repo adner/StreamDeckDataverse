@@ -37,3 +37,5 @@ export const ORIGIN_EMOJIS: Record<number, string> = {
 export const INCIDENT_KEY_START = 0;
 export const INCIDENT_KEY_COUNT = 32;
 export const KEY_SIZE = 96;
+export const GRID_COLUMNS = 8;
+export const GRID_ROWS = 4;

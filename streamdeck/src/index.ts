@@ -84,6 +84,7 @@ async function main(): Promise<void> {
   const cleanup = async () => {
     console.error("\nShutting down...");
     await child.stop();
+    await board.flushAnimations();
     await deck.resetToLogo();
     await deck.close();
     process.exit(0);
