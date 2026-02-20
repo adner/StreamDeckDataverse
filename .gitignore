@@ -1,3 +1,13 @@
-node_modules/
-dist/
+# Stream Deck (TypeScript)
+streamdeck/node_modules/
+streamdeck/dist/
 .env
+
+# .NET
+dotnet/**/bin/
+dotnet/**/obj/
+*.user
+*.suo
+dotnet/ServiceBusListener/appsettings.json
+
+.mcp.json

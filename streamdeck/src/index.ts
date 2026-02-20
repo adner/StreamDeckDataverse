@@ -1,5 +1,8 @@
 import { listStreamDecks, openStreamDeck, DeviceModelId } from "@elgato-stream-deck/node";
 import { renderTextKey } from "./render.js";
+import { ServiceBusChild } from "./ipc.js";
+import { IncidentBoard } from "./incident-board.js";
+import type { IncidentMessage } from "./types.js";
 
 async function main(): Promise<void> {
   // 1. Discover devices
@@ -9,9 +12,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`Found ${devices.length} device(s):`);
+  console.error(`Found ${devices.length} device(s):`);
   for (const dev of devices) {
-    console.log(`  - ${dev.model} at ${dev.path}`);
+    console.error(`  - ${dev.model} at ${dev.path}`);
   }
 
   // 2. Open the XL device
@@ -21,9 +24,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   const deck = await openStreamDeck(xlDevice.path);
-  console.log(`Opened: ${deck.PRODUCT_NAME} (model: ${deck.MODEL})`);
-  console.log(`Firmware: ${await deck.getFirmwareVersion()}`);
-  console.log(`Serial:   ${await deck.getSerialNumber()}`);
+  console.error(`Opened: ${deck.PRODUCT_NAME} (model: ${deck.MODEL})`);
+  console.error(`Firmware: ${await deck.getFirmwareVersion()}`);
+  console.error(`Serial:   ${await deck.getSerialNumber()}`);
 
   // 3. Set brightness
   await deck.setBrightness(80);
@@ -31,36 +34,57 @@ async function main(): Promise<void> {
   // 4. Clear all keys
   await deck.clearPanel();
 
-  // 5. Fill first three keys with solid colors
-  await deck.fillKeyColor(0, 255, 0, 0);   // Red
-  await deck.fillKeyColor(1, 0, 255, 0);   // Green
-  await deck.fillKeyColor(2, 0, 0, 255);   // Blue
-
-  // 6. Render text labels on a few keys
-  const labels = [
-    { key: 3, text: "Hello", bg: "#6200ea" },
-    { key: 4, text: "World", bg: "#0091ea" },
-    { key: 5, text: "D365",  bg: "#00695c" },
+  // 5. Render header row (row 0: keys 0–7)
+  const headers = [
+    { key: 0, text: "D365",   bg: "#00695c" },
+    { key: 1, text: "Cases",  bg: "#1565c0" },
+    { key: 7, text: "Status", bg: "#4e342e" },
   ];
 
-  for (const label of labels) {
-    const buf = await renderTextKey(label.text, label.bg);
-    await deck.fillKeyBuffer(label.key, buf, { format: "rgb" });
+  for (const h of headers) {
+    const buf = await renderTextKey(h.text, h.bg);
+    await deck.fillKeyBuffer(h.key, buf, { format: "rgb" });
   }
 
-  console.log("Keys initialized. Press buttons to interact.");
+  // 6. Set up incident board (keys 8–31)
+  const board = new IncidentBoard(deck);
 
-  // 7. Key events
+  // 7. Spawn .NET Service Bus listener
+  const child = new ServiceBusChild();
+
+  child.on("incident", (msg: IncidentMessage) => {
+    console.error(`[incident] ${msg.messageName}: ${msg.ticketNumber} — ${msg.title}`);
+    board.handleIncident(msg).catch((err) => console.error("[board] render error:", err));
+  });
+
+  child.start();
+
+  console.error("Keys initialized. Waiting for incidents...");
+
+  // 8. Key events
   deck.on("down", (control) => {
-    if (control.type === "button") {
-      console.log(`Key ${control.index} DOWN`);
-      deck.fillKeyColor(control.index, 255, 255, 255).catch(console.error);
+    if (control.type !== "button") return;
+
+    const incident = board.getIncidentAtKey(control.index);
+    if (incident) {
+      console.error(
+        `[keydown] ${incident.ticketNumber}: ${incident.title} ` +
+        `(priority=${incident.priorityLabel}, status=${incident.statusLabel})`
+      );
     }
+    deck.fillKeyColor(control.index, 255, 255, 255).catch(console.error);
   });
 
   deck.on("up", (control) => {
-    if (control.type === "button") {
-      console.log(`Key ${control.index} UP`);
+    if (control.type !== "button") return;
+
+    const incident = board.getIncidentAtKey(control.index);
+    if (incident) {
+      // Re-render the incident key to restore it
+      const slot = control.index - 8;
+      board.renderSlot(slot).catch(console.error);
+    } else {
+      // For header/empty keys, just clear
       deck.clearKey(control.index).catch(console.error);
     }
   });
@@ -69,9 +93,10 @@ async function main(): Promise<void> {
     console.error("Stream Deck error:", err);
   });
 
-  // 8. Graceful shutdown
+  // 9. Graceful shutdown
   const cleanup = async () => {
-    console.log("\nShutting down...");
+    console.error("\nShutting down...");
+    await child.stop();
     await deck.resetToLogo();
     await deck.close();
     process.exit(0);
