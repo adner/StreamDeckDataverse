@@ -22,6 +22,8 @@ public sealed class ServiceBusListenerService : BackgroundService
     private ServiceBusClient? _client;
     private ServiceBusProcessor? _processor;
 
+
+    
     public ServiceBusListenerService(ILogger<ServiceBusListenerService> logger, IConfiguration configuration)
     {
         _logger = logger;

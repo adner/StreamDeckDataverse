@@ -41,8 +41,8 @@ export async function renderIncidentKey(
       <text x="50%" y="46" text-anchor="middle"
         font-family="sans-serif" font-size="44"
         dominant-baseline="central">${originEmoji}</text>
-      <text x="50%" y="88" text-anchor="middle"
-        font-family="sans-serif" font-size="12"
+      <text x="50%" y="82" text-anchor="middle"
+        font-family="sans-serif" font-size="16"
         fill="rgba(255,255,255,0.7)">${escapeXml(priorityLabel)}</text>
     </svg>`;
 

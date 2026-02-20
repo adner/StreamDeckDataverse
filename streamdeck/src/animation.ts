@@ -1,23 +1,34 @@
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import { GRID_COLUMNS, GRID_ROWS, INCIDENT_KEY_START } from "./types.js";
 
-const FRAME_DELAY_MS = 120;
+const FRAME_DELAY_MS = 100;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Create a dimmed copy of an RGB buffer by multiplying each byte by a factor. */
+function dimBuffer(buf: Buffer, factor: number): Buffer {
+  const out = Buffer.allocUnsafe(buf.length);
+  for (let i = 0; i < buf.length; i++) {
+    out[i] = Math.round(buf[i] * factor);
+  }
+  return out;
 }
 
 /**
  * Animates a pre-rendered buffer sliding from the bottom row up to the
  * target slot's position within the same column.
  *
- * Uses overlap frames: the image briefly appears on two adjacent keys
- * simultaneously to create a smooth trailing effect.
+ * Uses brightness-ramped overlap frames for smooth trailing:
  *
- * Sequence for each row transition:
- *   1. Show on current row only → delay
- *   2. Show on current row + row above → delay
- *   3. Clear current row (image remains on row above) → continue
+ * Per row transition:
+ *   1. Current 100%                          → delay
+ *   2. Current 100% + next 30%              → delay
+ *   3. Current 100% + next 60%              → delay
+ *   4. Current 60%  + next 100%             → delay
+ *   5. Current 30%  + next 100%             → delay
+ *   6. Clear current, next stays full        → continue
  */
 export async function slideInAnimation(
   deck: StreamDeck,
@@ -34,25 +45,44 @@ export async function slideInAnimation(
     return;
   }
 
+  // Pre-compute dimmed buffers (reused across row transitions)
+  const dim30 = dimBuffer(buffer, 0.3);
+  const dim60 = dimBuffer(buffer, 0.6);
+
   const bottomRow = GRID_ROWS - 1;
 
   for (let row = bottomRow; row >= targetRow; row--) {
-    const keyIndex = row * GRID_COLUMNS + col;
+    const curKey = row * GRID_COLUMNS + col;
 
-    // Show image at current position
-    await deck.fillKeyBuffer(keyIndex, buffer, { format: "rgb" });
+    // Show full image at current position
+    await deck.fillKeyBuffer(curKey, buffer, { format: "rgb" });
 
     if (row === targetRow) break; // Final position — leave in place
 
+    const nextKey = (row - 1) * GRID_COLUMNS + col;
+
+    // Frame 1: current 100% (already shown) — pause
     await delay(FRAME_DELAY_MS);
 
-    // Overlap frame: show on both current and next row up
-    const nextKey = (row - 1) * GRID_COLUMNS + col;
+    // Frame 2: current 100% + next 30%
+    await deck.fillKeyBuffer(nextKey, dim30, { format: "rgb" });
+    await delay(FRAME_DELAY_MS);
+
+    // Frame 3: current 100% + next 60%
+    await deck.fillKeyBuffer(nextKey, dim60, { format: "rgb" });
+    await delay(FRAME_DELAY_MS);
+
+    // Frame 4: current 60% + next 100%
+    await deck.fillKeyBuffer(curKey, dim60, { format: "rgb" });
     await deck.fillKeyBuffer(nextKey, buffer, { format: "rgb" });
     await delay(FRAME_DELAY_MS);
 
-    // Clear current row, image continues on the row above
-    await deck.clearKey(keyIndex);
+    // Frame 5: current 30% + next 100%
+    await deck.fillKeyBuffer(curKey, dim30, { format: "rgb" });
+    await delay(FRAME_DELAY_MS);
+
+    // Clear current row, next row stays full
+    await deck.clearKey(curKey);
   }
 }
 
