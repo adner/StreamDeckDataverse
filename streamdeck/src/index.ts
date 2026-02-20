@@ -1,7 +1,8 @@
 import { listStreamDecks, openStreamDeck, DeviceModelId } from "@elgato-stream-deck/node";
+import { exec } from "child_process";
 import { ServiceBusChild } from "./ipc.js";
 import { IncidentBoard } from "./incident-board.js";
-import type { IncidentMessage } from "./types.js";
+import { D365_BASE_URL, D365_APP_ID, type IncidentMessage } from "./types.js";
 
 async function main(): Promise<void> {
   // 1. Discover devices
@@ -41,7 +42,7 @@ async function main(): Promise<void> {
 
   child.on("incident", (msg: IncidentMessage) => {
     console.error(`[incident] ${msg.messageName}: ${msg.ticketNumber} — ${msg.title}`);
-    board.handleIncident(msg).catch((err) => console.error("[board] render error:", err));
+    board.handleIncident(msg);
   });
 
   child.start();
@@ -58,6 +59,10 @@ async function main(): Promise<void> {
         `[keydown] ${incident.ticketNumber}: ${incident.title} ` +
         `(priority=${incident.priorityLabel}, status=${incident.statusLabel})`
       );
+      const url = `${D365_BASE_URL}?appid=${D365_APP_ID}&forceUCI=1&pagetype=entityrecord&etn=incident&id=${incident.incidentId}`;
+      exec(`start chrome "${url}"`, (err) => {
+        if (err) console.error("[open] Failed to open Chrome:", err.message);
+      });
     }
     deck.fillKeyColor(control.index, 255, 255, 255).catch(console.error);
   });

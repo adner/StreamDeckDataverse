@@ -1,6 +1,6 @@
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import { renderIncidentKey } from "./render.js";
-import { AnimationQueue, slideInAnimation } from "./animation.js";
+import { AnimationQueue, slideInAnimation, updatePulseAnimation } from "./animation.js";
 import {
   type IncidentMessage,
   PRIORITY_COLORS,
@@ -15,18 +15,29 @@ export class IncidentBoard {
   private idToSlot = new Map<string, number>();
   private deck: StreamDeck;
   private animationQueue = new AnimationQueue();
+  private processingChain: Promise<void> = Promise.resolve();
 
   constructor(deck: StreamDeck) {
     this.deck = deck;
   }
 
-  async handleIncident(msg: IncidentMessage): Promise<void> {
+  handleIncident(msg: IncidentMessage): void {
+    this.processingChain = this.processingChain
+      .then(() => this.processIncident(msg))
+      .catch((err) => console.error("[board] process error:", err));
+  }
+
+  private async processIncident(msg: IncidentMessage): Promise<void> {
     const existing = this.idToSlot.get(msg.incidentId);
 
     if (existing !== undefined) {
-      // Update in place — no animation
+      // Update in place — pulse animation
       this.slots[existing] = msg;
-      await this.renderSlot(existing);
+      const buf = await this.renderBuffer(msg);
+      const keyIndex = existing + INCIDENT_KEY_START;
+      this.animationQueue.enqueue(() =>
+        updatePulseAnimation(this.deck, keyIndex, buf)
+      );
       return;
     }
 

@@ -31,6 +31,7 @@ export const ORIGIN_EMOJIS: Record<number, string> = {
   1: "\u{260E}\u{FE0F}",  // Phone: telephone
   2: "\u{2709}\u{FE0F}",  // Email: envelope
   3: "\u{1F310}",          // Web: globe
+  700610000: "\u{1F4E1}",  // IoT: satellite antenna
 };
 
 /** Stream Deck XL layout constants. */
@@ -39,3 +40,7 @@ export const INCIDENT_KEY_COUNT = 32;
 export const KEY_SIZE = 96;
 export const GRID_COLUMNS = 8;
 export const GRID_ROWS = 4;
+
+/** Dynamics 365 URL for opening incident records. */
+export const D365_BASE_URL = "https://org41df0750.crm4.dynamics.com/main.aspx";
+export const D365_APP_ID = "6605cbc2-a674-f011-b4cc-000d3ab25cc7";

@@ -94,6 +94,27 @@ export async function slideInAnimation(
   }
 }
 
+const UPDATE_ANIMATION_MS = 400;
+
+/**
+ * Animates an in-place update by pulsing the key: dims down to 20%,
+ * then ramps back up to the new image.
+ */
+export async function updatePulseAnimation(
+  deck: StreamDeck,
+  keyIndex: number,
+  newBuffer: Buffer
+): Promise<void> {
+  const steps = [0.2, 0.1, 0.2, 0.4, 0.7, 1.0];
+  const stepDelay = Math.round(UPDATE_ANIMATION_MS / steps.length);
+
+  for (const factor of steps) {
+    const buf = factor < 1.0 ? dimBuffer(newBuffer, factor) : newBuffer;
+    await deck.fillKeyBuffer(keyIndex, buf, { format: "rgb" });
+    if (factor < 1.0) await delay(stepDelay);
+  }
+}
+
 /**
  * Serializes animation tasks so rapid arrivals play sequentially
  * rather than interleaving.

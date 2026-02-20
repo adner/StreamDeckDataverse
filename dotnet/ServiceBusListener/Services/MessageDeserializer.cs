@@ -42,7 +42,8 @@ public static class MessageDeserializer
     {
         { 1, "Phone" },
         { 2, "Email" },
-        { 3, "Web" }
+        { 3, "Web" },
+        { 700610000, "IoT" }
     };
 
     /// <summary>
