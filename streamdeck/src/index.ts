@@ -4,7 +4,7 @@ import { listStreamDecks, openStreamDeck, DeviceModelId } from "@elgato-stream-d
 import { exec } from "child_process";
 import { ServiceBusChild } from "./ipc.js";
 import { IncidentBoard } from "./incident-board.js";
-import { renderSplashScreen } from "./render.js";
+import { playStartupSequence } from "./startup.js";
 import { D365_BASE_URL, D365_APP_ID, type IncidentMessage } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -36,16 +36,9 @@ async function main(): Promise<void> {
   // 3. Set brightness
   await deck.setBrightness(80);
 
-  // 4. Show splash screen
+  // 4. Startup sequence: splash fade-in → title typewriter → clear
   const splashPath = path.resolve(__dirname, "../assets/splash.png");
-  try {
-    const splashBuf = await renderSplashScreen(splashPath);
-    await deck.fillPanelBuffer(splashBuf, { format: "rgb" });
-    console.error("Splash screen displayed (768x384)");
-  } catch {
-    console.error("No splash image found at assets/splash.png — clearing panel");
-    await deck.clearPanel();
-  }
+  await playStartupSequence(deck, splashPath);
 
   // 5. Set up incident board (keys 0–31)
   const board = new IncidentBoard(deck);

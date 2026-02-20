@@ -69,6 +69,43 @@ export async function renderSplashScreen(
     .toBuffer();
 }
 
+/**
+ * Renders a single letter as a 96x96 key with a neon glow effect
+ * on a dark background. Used for the startup title sequence.
+ */
+export async function renderLetterKey(
+  letter: string,
+  size: number = 96
+): Promise<Buffer> {
+  const svg = `
+    <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+          <feColorMatrix in="blur" type="matrix"
+            values="0 0 0 0 0
+                    0 0 0 0 0.9
+                    0 0 0 0 1
+                    0 0 0 1.2 0" result="cyan"/>
+          <feMerge>
+            <feMergeNode in="cyan"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <rect width="100%" height="100%" fill="#06061a"/>
+      <text x="50%" y="52%" text-anchor="middle" dominant-baseline="central"
+        font-family="sans-serif" font-size="60" font-weight="bold"
+        fill="#00e5ff" filter="url(#glow)">${escapeXml(letter)}</text>
+    </svg>`;
+
+  return sharp(Buffer.from(svg))
+    .resize(size, size)
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+}
+
 function escapeXml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
